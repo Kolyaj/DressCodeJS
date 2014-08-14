@@ -1,0 +1,10 @@
+{
+    "name": "dresscode",
+    "version": "0.0.0",
+    "dependencies": {
+        "jossy": "*"
+    },
+    "bin": {
+        "dresscode-compile": "bin/compile.js"
+    }
+}
