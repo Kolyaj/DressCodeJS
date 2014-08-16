@@ -5,6 +5,7 @@
         "jossy": "*"
     },
     "bin": {
-        "dresscode-compile": "bin/compile.js"
+        "dresscode-compile": "bin/compile.js",
+        "dresscode-node": "bin/node.js"
     }
 }

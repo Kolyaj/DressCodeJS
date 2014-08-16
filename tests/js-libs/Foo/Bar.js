@@ -1,0 +1,3 @@
+//#require Foo.Baz
+
+// $_
