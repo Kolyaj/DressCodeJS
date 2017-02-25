@@ -1,11 +1,11 @@
 {
     "name": "dresscode",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "dependencies": {
-        "jossy": "*"
+        "iclass": "^0.0.2",
+        "jossy": "^1.0.1"
     },
     "bin": {
-        "dresscode-compile": "bin/compile.js",
-        "dresscode-node": "bin/node.js"
+        "dresscode": "bin/index.js"
     }
 }
