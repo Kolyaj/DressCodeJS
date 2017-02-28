@@ -1,13 +1,12 @@
 {
-    "name": "dresscode",
+    "name": "dresscodejs",
     "version": "0.0.1",
     "dependencies": {
         "iclass": "^0.0.2",
         "jossy": "^1.0.3"
     },
-    "bin": {
-        "dresscode": "bin/index.js"
-    },
+    "main": "lib/DressCode.js",
+    "bin": "bin/index.js",
     "devDependencies": {
         "mocha": "^3.2.0",
         "mock-fs": "^4.1.0"
