@@ -26,6 +26,23 @@ var tests = {
         },
         input: '/js-dev/script.js',
         result: 'index();\na1();\na2();'
+    },
+    'test 2': {
+        fs: {
+            '/js-dev': {
+                'script.js': '//#require Foo.bar\n',
+                '.dresscode': '../js-libs'
+            },
+            '/js-libs': {
+                'Foo': {
+                    'index.js': '//#label bar\n//#require Foo.Bar\n//#endlabel',
+                    'Bar.js': 'alert(1);'
+                },
+                '.dresscode': '.'
+            }
+        },
+        input: '/js-dev/script.js',
+        result: 'alert(1);'
     }
 };
 
