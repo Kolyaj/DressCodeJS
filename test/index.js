@@ -10,6 +10,23 @@ var tests = {
         input: '/foo/bar.js',
         result: 'alert(1);'
     },
+    'Require module without labels': {
+        fs: {
+            '/js-dev': {
+                'script.js': '//#require Foo.Bar',
+                '.dresscode': '../js-libs'
+            },
+            '/js-libs': {
+                'Foo': {
+                    'index.js': 'index();\n',
+                    'Bar.js': 'a1();\n//#label baz\nbaz();\n//#endlabel baz'
+                },
+                '.dresscode': '.'
+            }
+        },
+        input: '/js-dev/script.js',
+        result: 'index();\na1();\n'
+    },
     'test 1': {
         fs: {
             '/js-dev': {
