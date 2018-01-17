@@ -2,14 +2,14 @@
     "name": "dresscodejs",
     "version": "0.0.5",
     "dependencies": {
-        "iclass": "^0.0.2",
+        "iclass": "0.0.2",
         "jossy": "^1.0.3"
     },
     "main": "lib/DressCode.js",
     "bin": "bin/index.js",
     "devDependencies": {
-        "mocha": "^3.2.0",
-        "mock-fs": "^4.1.0"
+        "mocha": "^3.5.3",
+        "mock-fs": "^4.4.2"
     },
     "scripts": {
         "test": "mocha"
