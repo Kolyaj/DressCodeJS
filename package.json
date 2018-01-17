@@ -1,6 +1,6 @@
 {
     "name": "dresscodejs",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "dependencies": {
         "iclass": "0.0.2",
         "jossy": "^1.0.3"
