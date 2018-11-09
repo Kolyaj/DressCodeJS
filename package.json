@@ -3,12 +3,12 @@
     "version": "0.0.6",
     "dependencies": {
         "iclass": "0.0.2",
-        "jossy": "^1.0.3"
+        "jossy": "^1.1.1"
     },
     "main": "lib/DressCode.js",
     "bin": "bin/index.js",
     "devDependencies": {
-        "mocha": "^3.5.3",
+        "mocha": "^5.2.0",
         "mock-fs": "^4.4.2"
     },
     "scripts": {
