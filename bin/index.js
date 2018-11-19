@@ -6,7 +6,7 @@ var dresscode = require('../lib/DressCode');
 var context = {};
 var args = [];
 process.argv.slice(2).forEach((arg) => {
-    if (arg.indexOf('-') == 0) {
+    if (arg.indexOf('-') === 0) {
         context[arg.substr(1)] = true;
     } else {
         args.push(arg);
@@ -21,7 +21,7 @@ if (!args[0]) {
 var output = args[1] ? fs.createWriteStream(args[1], 'utf8') : process.stdout;
 dresscode(args[0], context, context.debug).then((result) => {
     output.write(result);
-    if (output != process.stdout) {
+    if (output !== process.stdout) {
         output.end();
     }
 }).catch((err) => {

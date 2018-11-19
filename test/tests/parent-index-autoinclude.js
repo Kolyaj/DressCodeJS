@@ -18,9 +18,5 @@ alert('Foo.Bar.Baz');
 
 //===
 alert('Foo');
-
-
 alert('Foo.Bar');
-
-
 alert('Foo.Bar.Baz');

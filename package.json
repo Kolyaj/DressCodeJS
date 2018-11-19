@@ -2,8 +2,9 @@
     "name": "dresscodejs",
     "version": "0.0.6",
     "dependencies": {
+        "esprima": "^4.0.1",
         "iclass": "0.0.2",
-        "jossy": "^1.1.1"
+        "jossy": "^1.2.1"
     },
     "main": "lib/DressCode.js",
     "bin": "bin/index.js",

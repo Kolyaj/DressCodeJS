@@ -1,18 +1,19 @@
 //=== /js-dev/script.js
-//#require Foo.Bar
+Foo.Bar();
 
 //=== /js-dev/.dresscode
 //: ../js-libs
 
 //=== /js-libs/Foo/index.js
-alert('Foo');
+var Foo = {};
 
 //=== /js-libs/Foo/Bar.js
-alert('Foo.Bar');
+Foo.Bar = {};
 
 //=== /js-libs/.dresscode
 //: .
 
 //===
-alert('Foo');
-alert('Foo.Bar');
+var Foo = {};
+Foo.Bar = {};
+Foo.Bar();
