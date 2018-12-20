@@ -1,6 +1,6 @@
 {
     "name": "dresscodejs",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "dependencies": {
         "esprima": "^4.0.1",
         "iclass": "0.0.2",
