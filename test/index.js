@@ -151,6 +151,16 @@ describe('Dresscode', () => {
         ]);
     });
 
+    it('Компиляция инлайн кода', async() => {
+        mock({
+            '/js-libs/Foo/index.js': 'var Foo = {};\nFoo.bar = {};',
+            '/js-libs/.dresscode': '.',
+            '/js-dev/.dresscode': '../js-libs'
+        });
+        var result = await new DressCode().compileCode('/js-dev/index.js', 'var Bar = Foo.bar;');
+        assert.equal(result.trim(), 'var Foo = {};\nFoo.bar = {};\nvar Bar = Foo.bar;');
+    });
+
     describe('Корректность сборки', () => {
         fs.readdirSync(path.join(__dirname, 'tests')).forEach((fname) => {
             if (/\.js$/.test(fname)) {
