@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 
-var fs = require('fs');
-var dresscode = require('../lib/DressCode');
+var fs = require('fs-extra');
+var {DressCode} = require('../lib/DressCode');
 
 var context = {};
 var args = [];
+var params = {
+    'private-dict': ''
+};
 process.argv.slice(2).forEach((arg) => {
-    if (arg.indexOf('-') === 0) {
+    if (arg.match(/^--(.+?)=(.*)$/)) {
+        params[RegExp.$1] = RegExp.$2;
+    } else if (arg.indexOf('-') === 0) {
         context[arg.substr(1)] = true;
     } else {
         args.push(arg);
@@ -14,15 +19,28 @@ process.argv.slice(2).forEach((arg) => {
 });
 
 if (!args[0]) {
-    console.log('Usage: jossy <input file or dir> <output file or dir> -context_var1 -context_var2 ...');
+    console.log('Usage: dresscodejs <input file> <output file> [--private-dict=path/to/dict.json] -context_var1 -context_var2 ...');
     process.exit(1);
 }
 
-var output = args[1] ? fs.createWriteStream(args[1], 'utf8') : process.stdout;
-dresscode(args[0], context, context.debug).then((result) => {
-    output.write(result);
-    if (output !== process.stdout) {
-        output.end();
+var dresscode = new DressCode(context.debug);
+Promise.resolve().then(() => {
+    if (params['private-dict']) {
+        return fs.readJson(params['private-dict']).then((dict) => {
+            dresscode.setPrivateNamesDict(dict);
+        });
+    }
+}).then(() => {
+    return dresscode.compile(args[0], context).then((result) => {
+        if (args[1]) {
+            return fs.ensureFile(args[1], result, 'utf8');
+        } else {
+            console.log(result);
+        }
+    });
+}).then(() => {
+    if (params['private-dict']) {
+        return fs.writeJson(params['private-dict'], dresscode.getPrivateNamesDict());
     }
 }).catch((err) => {
     console.error(err.stack);

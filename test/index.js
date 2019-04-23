@@ -163,4 +163,23 @@ describe('Dresscode', () => {
             }
         });
     });
+
+    describe('Production режим сборки', () => {
+        it('$$ преобразуется во что-то короткое и одинаковое в пределах файла', async() => {
+            mock({
+                '/Foo/index.js': 'alert("$$");alert("$$");',
+                '/.dresscode': '.'
+            });
+            var result = await new DressCode().compile('/Foo/index.js');
+            assert.equal(result.trim(), 'alert("_0_");alert("_0_");')
+        });
+        it('$$ с суффиксом преобразуется во что-то короткое и одинаковое в пределах файла', async() => {
+            mock({
+                '/Foo/index.js': 'alert("$$");alert("$$__elem");alert("$$");alert("$$__elem");',
+                '/.dresscode': '.'
+            });
+            var result = await new DressCode().compile('/Foo/index.js');
+            assert.equal(result.trim(), 'alert("_0_");alert("_1_");alert("_0_");alert("_1_");')
+        });
+    });
 });
