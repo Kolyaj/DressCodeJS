@@ -2,47 +2,60 @@
 
 var fs = require('fs-extra');
 var {DressCode} = require('../lib/DressCode');
+var {program} = require('commander');
+var {version} = require('../package');
 
-var context = {};
-var args = [];
-var params = {
-    'private-dict': ''
+var collectArray = function(value, prev) {
+    return prev.concat([value]);
 };
-process.argv.slice(2).forEach((arg) => {
-    if (arg.match(/^--(.+?)=(.*)$/)) {
-        params[RegExp.$1] = RegExp.$2;
-    } else if (arg.indexOf('-') === 0) {
-        context[arg.substr(1)] = true;
-    } else {
-        args.push(arg);
-    }
-});
 
-if (!args[0]) {
-    console.log('Usage: dresscodejs <input file> <output file> [--private-dict=path/to/dict.json] -context_var1 -context_var2 ...');
+var collectObject = function(value, prev) {
+    return {[value]: true, ...prev};
+};
+
+program
+    .version(version)
+    .requiredOption('-i, --input <path>', 'input file')
+    .option('-o, --output <path>', 'output file, if not specified it will be stdout')
+    .option('-d, --debug', 'don\'t obfuscate private names, also it add parameter --set debug')
+    .option('--set <flag>', 'one or more flags for set directive', collectObject, {})
+    .option('--layer <layer>', 'build only code under this layer, don\'t use with --layers option')
+    .option('--layers <layer>', 'one or more layers that will be included to output, dot\'t use with --layer option', collectArray, [])
+    .option('--private-dict <path>', 'path to storage json-file for private names')
+    .option('--fail-on-errors', 'exit process if build error occured, by default it output new Error() expression');
+
+var args = program.parse(process.argv);
+if (args.layer && args.layers.length > 0) {
+    console.log('Don\'t use layer and layers options together.');
     process.exit(1);
 }
+if (args.debug) {
+    args.set.debug = true;
+}
 
-var dresscode = new DressCode(context.debug);
+var output = args.output ? fs.createWriteStream(args.output, 'utf8') : process.stdout;
+var dresscode = new DressCode(args.debug, args.failOnErrors);
 Promise.resolve().then(() => {
-    if (params['private-dict']) {
-        return fs.readJson(params['private-dict']).then((dict) => {
+    if (args.privateDict) {
+        return fs.readJson(args.privateDict).then((dict) => {
             dresscode.setPrivateNamesDict(dict);
         });
     }
 }).then(() => {
-    return dresscode.compile(args[0], context).then((result) => {
-        if (args[1]) {
-            return fs.outputFile(args[1], result, 'utf8');
-        } else {
-            console.log(result);
+    return dresscode.compile(args.input, args.set, [], args.layer || args.layers).then((result) => {
+        output.write(result);
+        if (output !== process.stdout) {
+            output.end();
         }
     });
 }).then(() => {
-    if (params['private-dict']) {
-        return fs.writeJson(params['private-dict'], dresscode.getPrivateNamesDict());
+    if (args.privateDict) {
+        return fs.writeJson(args.privateDict, dresscode.getPrivateNamesDict());
     }
 }).catch((err) => {
     console.error(err.stack);
+    if (args.output) {
+        output.end();
+    }
     process.exit(1);
 });
