@@ -8,9 +8,12 @@ Foo.Bar();
 
 //=== /js-libs/Foo/Bar.js
 Foo.Bar = {};
+//#label lol
 Foo.Bar.prototype = {};
 Foo.Bar.prototype.constructor = Foo.Bar;
 Foo.Bar.foo.bar = {};
+//#endlabel
+//#include ::lol
 
 //=== /js-libs/.dresscode
 //: .
