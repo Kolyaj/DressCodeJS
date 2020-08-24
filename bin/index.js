@@ -33,7 +33,6 @@ if (args.debug) {
     args.set.debug = true;
 }
 
-var output = args.output ? fs.createWriteStream(args.output, 'utf8') : process.stdout;
 var dresscode = new DressCode(args.debug, args.failOnErrors);
 Promise.resolve().then(() => {
     if (args.privateDict) {
@@ -43,9 +42,10 @@ Promise.resolve().then(() => {
     }
 }).then(() => {
     return dresscode.compile(args.input, args.set, [], args.layer || args.layers).then((result) => {
-        output.write(result);
-        if (output !== process.stdout) {
-            output.end();
+        if (args.output) {
+            return fs.outputFile(args.output, result);
+        } else {
+            console.log(result);
         }
     });
 }).then(() => {
@@ -54,8 +54,5 @@ Promise.resolve().then(() => {
     }
 }).catch((err) => {
     console.error(err.stack);
-    if (args.output) {
-        output.end();
-    }
     process.exit(1);
 });
