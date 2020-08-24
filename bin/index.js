@@ -36,8 +36,12 @@ if (args.debug) {
 var dresscode = new DressCode(args.debug, args.failOnErrors);
 Promise.resolve().then(() => {
     if (args.privateDict) {
-        return fs.readJson(args.privateDict).then((dict) => {
-            dresscode.setPrivateNamesDict(dict);
+        return fs.pathExists(args.privateDict).then((dictExists) => {
+            if (dictExists) {
+                return fs.readJson(args.privateDict).then((dict) => {
+                    dresscode.setPrivateNamesDict(dict);
+                });
+            }
         });
     }
 }).then(() => {
