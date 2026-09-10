@@ -6,7 +6,7 @@
         "esprima": "^4.0.1",
         "fs-extra": "^7.0.1",
         "iclass": "0.0.2",
-        "jossy": "2.0.0"
+        "jossy": "2.0.1"
     },
     "main": "lib/DressCode.js",
     "bin": "bin/index.js",
