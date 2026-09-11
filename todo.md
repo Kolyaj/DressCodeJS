@@ -1,7 +1,6 @@
 # todo.md
 
 - [ ] `clearCache()` не сбрасывает кэши DressCode — lib/DressCode.js — override: сбрасывать `_dresscodeFilePromises`, `_componentsInDirPromises`, `_componentsForDirPromises`, `_componentsForDir` (иначе новый компонент на диске не попадёт в bycname; критично для watch/Yaxy). Воспро: билд → добавить компонент → clearCache → rebuild → компонента нет.
-- [ ] require теряется при коллизии позиций: labeled-декларация `Foo.a = 1` сразу (без пустой строки) перед usage другого компонента `Bar.b()` → endlabel занимает его старт → require Bar не инжектится — lib/DressCode.js `_parseCode` injections — различать «label этой же декларации» (skip — self-require guard) и «endlabel предыдущей» (append); фикстура.
 - [ ] Сбой парса (синтаксическая ошибка / ES2020 `?.` `??`) молча усекает карту зависимостей после точки ошибки — lib/ecma-parser.js `catch (ignored)` — warning в debug/`--fail-on-errors` режимах.
 - [ ] Дубликаты cname между несколькими библиотеками — silently last-wins (lib-b теньюет lib-a) — lib/DressCode.js `_makeComponentsForDir` — предупреждение о shadowing.
 - [ ] Библиотеки из `.dresscode` с не существующим путём молча дают `[]` — lib/DressCode.js `getComponentsInDir` (ENOENT → `[]`) — в `--fail-on-errors` режиме явно указанная зависимость должна падать.
