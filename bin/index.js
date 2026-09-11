@@ -27,36 +27,41 @@ program
 var args = program.parse(process.argv);
 if (args.layer && args.layers.length > 0) {
     console.log('Don\'t use layer and layers options together.');
-    process.exit(1);
-}
-if (args.debug) {
-    args.set.debug = true;
-}
+    // exitCode instead of process.exit(): the process exits naturally when the event
+    // loop drains, so the buffered stdout write above is not lost through a pipe.
+    process.exitCode = 1;
+} else {
+    if (args.debug) {
+        args.set.debug = true;
+    }
 
-var dresscode = new DressCode(args.debug, args.failOnErrors);
-Promise.resolve().then(() => {
-    if (args.privateDict) {
-        return fs.pathExists(args.privateDict).then((dictExists) => {
-            if (dictExists) {
-                return fs.readJson(args.privateDict).then((dict) => {
-                    dresscode.setPrivateNamesDict(dict);
-                });
+    var dresscode = new DressCode(args.debug, args.failOnErrors);
+    Promise.resolve().then(() => {
+        if (args.privateDict) {
+            return fs.pathExists(args.privateDict).then((dictExists) => {
+                if (dictExists) {
+                    return fs.readJson(args.privateDict).then((dict) => {
+                        dresscode.setPrivateNamesDict(dict);
+                    });
+                }
+            });
+        }
+    }).then(() => {
+        return dresscode.compile(args.input, args.set, [], args.layer || args.layers).then((result) => {
+            if (args.output) {
+                return fs.outputFile(args.output, result);
+            } else {
+                console.log(result);
             }
         });
-    }
-}).then(() => {
-    return dresscode.compile(args.input, args.set, [], args.layer || args.layers).then((result) => {
-        if (args.output) {
-            return fs.outputFile(args.output, result);
-        } else {
-            console.log(result);
+    }).then(() => {
+        if (args.privateDict) {
+            return fs.writeJson(args.privateDict, dresscode.getPrivateNamesDict());
         }
+    }).catch((err) => {
+        console.error(err.stack);
+        // exitCode instead of process.exit(): let the buffered stderr write flush
+        // before the process exits — process.exit() drops unflushed pipe writes.
+        process.exitCode = 1;
     });
-}).then(() => {
-    if (args.privateDict) {
-        return fs.writeJson(args.privateDict, dresscode.getPrivateNamesDict());
-    }
-}).catch((err) => {
-    console.error(err.stack);
-    process.exit(1);
-});
+}
