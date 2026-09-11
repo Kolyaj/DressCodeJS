@@ -105,6 +105,40 @@ describe('Dresscode', () => {
         assert.deepEqual(await dresscode.getDresscodeFileContent('/foo'), ['/foo/a']);
     });
 
+    it('clearCache сбрасывает кэши DressCode', async() => {
+        mock({
+            '/js-libs': {
+                '.dresscode': '.',
+                'Foo': {
+                    'index.js': 'var Foo = {};\nFoo.bar = {};'},
+                'Baz': {
+                    'index.js': 'var Baz = {};\nvar x = Foo.bar;'}
+            }
+        });
+        var dresscode = new DressCode();
+        var result = await dresscode.compile('/js-libs/Baz/index.js');
+        assert.ok(result.indexOf('var Foo = {};') > -1);
+        mock.restore();
+        mock({
+            '/js-libs': {
+                '.dresscode': '.',
+                'Foo': {
+                    'index.js': 'var Foo = {};\nFoo.bar = {};'},
+                'Bar': {
+                    'index.js': 'var Bar = {};\nBar.baz = {};'},
+                'Baz': {
+                    'index.js': 'var Baz = {};\nvar y = Bar.baz;'}
+            }
+        });
+        dresscode.clearCache();
+        assert.deepEqual(dresscode._dresscodeFilePromises, {});
+        assert.deepEqual(dresscode._componentsInDirPromises, {});
+        assert.deepEqual(dresscode._componentsForDirPromises, {});
+        assert.deepEqual(dresscode._componentsForDir, {});
+        result = await dresscode.compile('/js-libs/Baz/index.js');
+        assert.ok(result.indexOf('var Bar = {};') > -1);
+    });
+
     it('Если файл .dresscode не нашёлся, то возвращается пустой массив', async() => {
         mock({
             '/foo/bar/baz': {}

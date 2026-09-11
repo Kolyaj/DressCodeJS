@@ -1,6 +1,5 @@
 # todo.md
 
-- [ ] `clearCache()` не сбрасывает кэши DressCode — lib/DressCode.js — override: сбрасывать `_dresscodeFilePromises`, `_componentsInDirPromises`, `_componentsForDirPromises`, `_componentsForDir` (иначе новый компонент на диске не попадёт в bycname; критично для watch/Yaxy). Воспро: билд → добавить компонент → clearCache → rebuild → компонента нет.
 - [ ] Сбой парса (синтаксическая ошибка / ES2020 `?.` `??`) молча усекает карту зависимостей после точки ошибки — lib/ecma-parser.js `catch (ignored)` — warning в debug/`--fail-on-errors` режимах.
 - [ ] Дубликаты cname между несколькими библиотеками — silently last-wins (lib-b теньюет lib-a) — lib/DressCode.js `_makeComponentsForDir` — предупреждение о shadowing.
 - [ ] Библиотеки из `.dresscode` с не существующим путём молча дают `[]` — lib/DressCode.js `getComponentsInDir` (ENOENT → `[]`) — в `--fail-on-errors` режиме явно указанная зависимость должна падать.
