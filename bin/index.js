@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 var fs = require('fs-extra');
+var path = require('path');
 var {DressCode} = require('../lib/DressCode');
 var {program} = require('commander');
 var {version} = require('../package');
@@ -11,6 +12,24 @@ var collectArray = function(value, prev) {
 
 var collectObject = function(value, prev) {
     return {[value]: true, ...prev};
+};
+
+// Атомарная запись файла словаря: сначала во временный файл в том же
+// каталоге, затем rename(). rename атомарен — параллельный читатель
+// (другая сборка) не увидит наполовину записанный файл. pid в имени
+// временного файла: остатки от упавшей сборки опознаются и не
+// сталкиваются с временными файлами других процессов.
+var writeJsonAtomic = function(filePath, data) {
+    var dirname = path.dirname(filePath);
+    var tmpPath = path.join(dirname, `.${path.basename(filePath)}.${process.pid}.tmp`);
+    return fs.mkdirs(dirname)
+        .then(() => fs.writeJson(tmpPath, data))
+        .then(() => fs.rename(tmpPath, filePath))
+        .catch((err) => {
+            return fs.remove(tmpPath).then(() => {
+                throw err;
+            });
+        });
 };
 
 program
@@ -36,11 +55,16 @@ if (args.layer && args.layers.length > 0) {
     }
 
     var dresscode = new DressCode(args.debug, args.failOnErrors);
+    var dictBefore = null; // словарь, как прочитан с диска: чтобы не переписывать без изменений
     Promise.resolve().then(() => {
         if (args.privateDict) {
             return fs.pathExists(args.privateDict).then((dictExists) => {
                 if (dictExists) {
                     return fs.readJson(args.privateDict).then((dict) => {
+                        if (!Array.isArray(dict)) {
+                            throw new Error(`Private names dictionary ${args.privateDict} should contain a JSON array.`);
+                        }
+                        dictBefore = dict;
                         dresscode.setPrivateNamesDict(dict);
                     });
                 }
@@ -56,7 +80,15 @@ if (args.layer && args.layers.length > 0) {
         });
     }).then(() => {
         if (args.privateDict) {
-            return fs.writeJson(args.privateDict, dresscode.getPrivateNamesDict());
+            var dictAfter = dresscode.getPrivateNamesDict();
+            // Словарь за сборку только растёт. Если новых приватных имён не
+            // появилось, файл не переписываем: при параллельных сборках на
+            // общий словарь последний писавший перезаписывает предыдущего,
+            // а переписка без изменений лишь обновляет mtime.
+            if (dictBefore && dictAfter.length === dictBefore.length) {
+                return;
+            }
+            return writeJsonAtomic(args.privateDict, dictAfter);
         }
     }).catch((err) => {
         console.error(err.stack);

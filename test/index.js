@@ -1,11 +1,15 @@
 var assert = require('assert');
 var mock = require('mock-fs');
 var fs = require('fs');
+var fsExtra = require('fs-extra');
+var os = require('os');
+var {execFile} = require('child_process');
 var {promisify} = require('util');
 var {DressCode} = require('../lib/DressCode');
 var path = require('path');
 
 var readFile = promisify(fs.readFile);
+var execFileAsync = promisify(execFile);
 
 var readTest = async(testFileName) => {
     var files = {};
@@ -225,5 +229,89 @@ describe('Dresscode', () => {
             var result = await new DressCode().compile('/Foo/index.js');
             assert.equal(result.trim(), 'alert("_0_");alert("_1_");alert("_0_");alert("_1_");')
         });
+    });
+});
+
+describe('CLI bin/index.js', function() {
+    // Интеграционные тесты запускают реальный CLI в дочернем процессе в настоящем
+    // временном каталоге: mock-fs дочерний процесс не видит.
+    this.timeout(10000);
+
+    var BIN_PATH = path.join(__dirname, '..', 'bin', 'index.js');
+    var tmpRoots = [];
+
+    afterEach(async() => {
+        while (tmpRoots.length) {
+            fsExtra.remove(tmpRoots.pop());
+        }
+    });
+
+    var setup = async() => {
+        var root = fsExtra.mkdtempSync(path.join(os.tmpdir(), 'dresscodejs-'));
+        tmpRoots.push(root);
+        await fsExtra.outputFile(path.join(root, 'lib', '.dresscode'), '.\n');
+        await fsExtra.outputFile(path.join(root, 'lib', 'Foo', 'index.js'),
+            'var Foo = {};\nFoo.bar = function() {\n    alert("$$");\n};\n');
+        await fsExtra.outputFile(path.join(root, 'app', '.dresscode'), '../lib\n');
+        await fsExtra.outputFile(path.join(root, 'app', 'index.js'), 'Foo.bar();\n');
+        return root;
+    };
+
+    var run = (root, args) => {
+        // promisify(execFile) при успехе разрешается {stdout, stderr} без .code;
+        // при ненулевом коде отклоняется ошибкой с .code/.stdout/.stderr. Нормализуем в {code, stdout, stderr}.
+        return execFileAsync(process.execPath, [BIN_PATH].concat(args), {cwd: root})
+            .then(
+                ({stdout, stderr}) => ({code: 0, stdout, stderr}),
+                (err) => err
+            );
+    };
+
+    it('$$ словарь: две последовательные сборки дают одинаковые приватные имена', async() => {
+        var root = await setup();
+        var first = await run(root, ['-i', 'app/index.js', '-o', 'app/build1.js', '--private-dict', 'dict.json']);
+        assert.equal(first.code, 0, first.stderr);
+        var out1 = fsExtra.readFileSync(path.join(root, 'app', 'build1.js'), 'utf8');
+        var second = await run(root, ['-i', 'app/index.js', '-o', 'app/build2.js', '--private-dict', 'dict.json']);
+        assert.equal(second.code, 0, second.stderr);
+        var out2 = fsExtra.readFileSync(path.join(root, 'app', 'build2.js'), 'utf8');
+        assert.ok(out1.indexOf('alert("_0_")') > -1, out1);
+        assert.ok(out2.indexOf('alert("_0_")') > -1, out2);
+        assert.equal(out1.trim(), out2.trim());
+        assert.deepEqual(fsExtra.readJsonSync(path.join(root, 'dict.json')), ['Foo']);
+    });
+
+    it('$$ словарь: имя, уже стоящее в словаре, сохраняет свой индекс', async() => {
+        var root = await setup();
+        fsExtra.writeJsonSync(path.join(root, 'dict.json'), ['Existing']);
+        var result = await run(root, ['-i', 'app/index.js', '-o', 'app/build.js', '--private-dict', 'dict.json']);
+        assert.equal(result.code, 0, result.stderr);
+        var out = fsExtra.readFileSync(path.join(root, 'app', 'build.js'), 'utf8');
+        assert.ok(out.indexOf('alert("_1_")') > -1, out);
+        assert.deepEqual(fsExtra.readJsonSync(path.join(root, 'dict.json')), ['Existing', 'Foo']);
+    });
+
+    it('$$ словарь: файл словаря (вместе с каталогом) создаётся, если его не было', async() => {
+        var root = await setup();
+        var result = await run(root, ['-i', 'app/index.js', '-o', 'app/build.js', '--private-dict', 'new-dir/dict.json']);
+        assert.equal(result.code, 0, result.stderr);
+        assert.deepEqual(fsExtra.readJsonSync(path.join(root, 'new-dir', 'dict.json')), ['Foo']);
+    });
+
+    it('$$ словарь: несловарный (не массив) JSON-файл — понятная ошибка, а не краш', async() => {
+        var root = await setup();
+        fsExtra.writeJsonSync(path.join(root, 'dict.json'), {not: 'array'});
+        var result = await run(root, ['-i', 'app/index.js', '-o', 'app/build.js', '--private-dict', 'dict.json']);
+        assert.notEqual(result.code, 0);
+        assert.ok(result.stderr.indexOf('array') > -1, result.stderr);
+    });
+
+    it('$$ словарь: после сборки не остаётся временных файлов', async() => {
+        var root = await setup();
+        fsExtra.writeJsonSync(path.join(root, 'dict.json'), ['Existing']);
+        var result = await run(root, ['-i', 'app/index.js', '-o', 'app/build.js', '--private-dict', 'dict.json']);
+        assert.equal(result.code, 0, result.stderr);
+        var leftovers = fsExtra.readdirSync(root).filter((name) => /\.tmp$/.test(name));
+        assert.deepEqual(leftovers, []);
     });
 });
