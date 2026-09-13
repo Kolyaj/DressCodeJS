@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Рабочие договорённости
+
+- Коммиты — только по явному указанию пользователя; без указания изменения остаются в working tree, агент их не коммитит и предлагает пользователю закоммитить. (Решено 2026-09-13: агент сам закоммитил фикс 20260911-5.)
+
 ## Знания
 
 ### Архитектура
@@ -15,10 +19,10 @@
 - Непосуществующий путь библиотеки в `.dresscode` → молча `[]` (`_makeComponentsInDir`: ENOENT → `[]`). Осознанно, не превращать в ошибку даже в `--fail-on-errors` (20260911-3, решено 2026-09-11): одна и та же библиотека может быть объявлена двумя путями — при её разработке она лежит в `node_modules` зависимой библиотеки (напр. у Botex `node_modules/dresscode-quantum/lib`), а в проекте-потребителе npm hoisting кладёт её в корень проекта (`../../../node_modules/dresscode-quantum/lib`) — в каждом layout существует ровно один из двух путей, отсутствующий обязан не падать. Если оба пути существуют — компоненты дублируются по cname, last-wins (todo 20260911-2).
 - Кэши Jossy не инвалидируются автоматически (`clearCache()` — за вызывающим); DressCode добавляет собственные кэши: `_dresscodeFilePromises`, `_componentsInDirPromises`, `_componentsForDir(Promises)`. `DressCode.clearCache` override — сбрасывает и все четыре dresscode-кэша + Jossy-кэши (super), иначе новый компонент на диске не попадёт в `bycname` (тест `clearCache сбрасывает кэши DressCode`).
 - Парсер: `esprima-next` 6.0.3 (форк, ES2022: `?.`, `??`, class fields/privates, BigInt — ОК; более новый синтаксис — throw; `import.meta` — throw как «outside module», sourceType=script). `esprima` на npm заморожен на 4.0.1 (ES2017) — в зависимость не возвращается. Visitor-колбэк срабатывает по мере разбора (в т.ч. для MemberExpression внутри ChainExpression): при синтаксической ошибке `ecma-parser.parse` возвращает пустую карту + `error` → файл проходит необработанным: исходный текст попадает в вывод сборки, юзер ошибку парсинга сам заметит (20260911-1, решено 2026-09-12); warning через console.warn в debug/`--fail-on-errors` режимах, сборка не прерывается. В Node `console.warn` пишет в **stderr** (v4+: alias `console.error`, проверено по исходникам) — warning не загрязняет поток build-результата (stdout/файл); загрязнение возможно только если потребитель (напр. Yaxy) мержит stderr в stdout (`execSync` по умолчанию мержит). Частичную карту (usages до точки ошибки, labels потеряны — они требуют ast) намеренно выбрасываем: она полунжиктировала бы директивы в битый файл. Если упрёмся в ES2022 — долгоживущая альтернатива `acorn` (нет visitor-колбэка, при сбое AST отсутствует → теряется подбор usages по узлам).
-- Встроенные свойства исключены из auto-label списком `['prototype', 'toString', 'valueOf']` (lib/DressCode.js).
+- Встроенные свойства исключены из auto-label списком `['prototype', 'toString', 'valueOf', 'constructor']` (lib/DressCode.js). Все — части каркаса класса, обязаны ездить в базе: до фикса (20260911-5, решено 2026-09-13) `Foo.constructor = ...` лейблится и молча вылетал при любой label-селекции, не включающей `constructor`. Side effect дополнения списка: на LHS встроенной декларации инжектится self-require (`#require Foo.constructor` → self-import с этим label) — безопасно, дедуп `compiledWhen`+`included` Jossy (напр. фикстура `non-standard-file` так и делает с `prototype`).
 
 ### Тесты
 
 - Фикстуры [test/tests/](test/tests/): секции `//=== путь` (первая = input, последняя = ожидаемый вывод), префикс `//: ` в строках контента; подхватываются mocha автоматически. Unit-тесты с mock-fs — в [test/index.js](test/index.js).
 - CLI-тесты (`describe CLI bin/index.js`, test/index.js) — интеграционные: реальный `bin/index.js` в дочернем процессе в `mkdtemp`-каталоге (mock-fs дочерний процесс не видит); на каждый запуск ~50мс.
-- `npm test` — полный прогон (43 теста, ~300мс).
+- `npm test` — полный прогон (44 теста, ~300мс).
