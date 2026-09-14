@@ -314,4 +314,80 @@ describe('CLI bin/index.js', function() {
         var leftovers = fsExtra.readdirSync(root).filter((name) => /\.tmp$/.test(name));
         assert.deepEqual(leftovers, []);
     });
+
+    describe('Папка в -i: сборка всех js-файлов', () => {
+        var setupFolder = async() => {
+            var root = fsExtra.mkdtempSync(path.join(os.tmpdir(), 'dresscodejs-'));
+            tmpRoots.push(root);
+            await fsExtra.outputFile(path.join(root, 'lib', '.dresscode'), '.\n');
+            await fsExtra.outputFile(path.join(root, 'lib', 'Widget', 'index.js'),
+                'var Widget = {};\nWidget.render = function() {\n    alert("$$");\n};\n');
+            await fsExtra.outputFile(path.join(root, 'lib', 'Gadget', 'index.js'),
+                'var Gadget = {};\nGadget.render = function() {\n    alert("$$");\n};\n');
+            await fsExtra.outputFile(path.join(root, 'app', '.dresscode'), '../lib\n');
+            await fsExtra.outputFile(path.join(root, 'app', 'a.js'), 'Widget.render();\n');
+            await fsExtra.outputFile(path.join(root, 'app', 'b.js'), 'Gadget.render();\n');
+            await fsExtra.outputFile(path.join(root, 'app', 'sub', 'c.js'), 'Widget.render();\n');
+            return root;
+        };
+
+        it('Все js-файлы (включая вложенные) собираются в папку -o с сохранением структуры', async() => {
+            var root = await setupFolder();
+            var result = await run(root, ['-i', 'app', '-o', 'build']);
+            assert.equal(result.code, 0, result.stderr);
+            var a = fsExtra.readFileSync(path.join(root, 'build', 'a.js'), 'utf8');
+            var b = fsExtra.readFileSync(path.join(root, 'build', 'b.js'), 'utf8');
+            var c = fsExtra.readFileSync(path.join(root, 'build', 'sub', 'c.js'), 'utf8');
+            assert.ok(a.indexOf('var Widget = {};') > -1, a);
+            assert.ok(a.indexOf('alert("_0_")') > -1, a);
+            assert.ok(b.indexOf('var Gadget = {};') > -1, b);
+            assert.ok(b.indexOf('alert("_1_")') > -1, b);
+            assert.ok(b.indexOf('_0_') === -1, b);
+            // Один экземпляр DressCode: тот же компонент даёт то же приватное имя в обоих выходных файлах
+            assert.ok(c.indexOf('alert("_0_")') > -1, c);
+            assert.equal(c, a);
+        });
+
+        it('$$ словарь общий для всех файлов папки: индексы не пересекаются', async() => {
+            var root = await setupFolder();
+            fsExtra.writeJsonSync(path.join(root, 'dict.json'), ['Existing']);
+            var result = await run(root, ['-i', 'app', '-o', 'build', '--private-dict', 'dict.json']);
+            assert.equal(result.code, 0, result.stderr);
+            var a = fsExtra.readFileSync(path.join(root, 'build', 'a.js'), 'utf8');
+            var b = fsExtra.readFileSync(path.join(root, 'build', 'b.js'), 'utf8');
+            var c = fsExtra.readFileSync(path.join(root, 'build', 'sub', 'c.js'), 'utf8');
+            assert.ok(a.indexOf('alert("_1_")') > -1, a);
+            assert.ok(b.indexOf('alert("_2_")') > -1, b);
+            assert.ok(c.indexOf('alert("_1_")') > -1, c);
+            assert.deepEqual(fsExtra.readJsonSync(path.join(root, 'dict.json')), ['Existing', 'Widget', 'Gadget']);
+        });
+
+        it('Без -o в папочном режиме — понятная ошибка и ненулевой код', async() => {
+            var root = await setupFolder();
+            var result = await run(root, ['-i', 'app']);
+            assert.notEqual(result.code, 0);
+            assert.ok(result.stderr.indexOf('-o') > -1, result.stdout);
+        });
+
+        it('Папка -o, совпадающая с папкой -i — ошибка: нельзя пересобирать исходники на месте', async() => {
+            var root = await setupFolder();
+            var sourceBefore = fsExtra.readFileSync(path.join(root, 'app', 'a.js'), 'utf8');
+            var result = await run(root, ['-i', 'app', '-o', 'app']);
+            assert.notEqual(result.code, 0);
+            assert.equal(fsExtra.readFileSync(path.join(root, 'app', 'a.js'), 'utf8'), sourceBefore);
+        });
+
+        it('Выходной каталог внутри входного: повторный запуск не пересобирает собственные результаты', async() => {
+            var root = await setupFolder();
+            var first = await run(root, ['-i', 'app', '-o', 'app/build']);
+            assert.equal(first.code, 0, first.stderr);
+            var firstA = fsExtra.readFileSync(path.join(root, 'app', 'build', 'a.js'), 'utf8');
+            assert.ok(!fsExtra.existsSync(path.join(root, 'app', 'build', 'build')));
+            var second = await run(root, ['-i', 'app', '-o', 'app/build']);
+            assert.equal(second.code, 0, second.stderr);
+            var secondA = fsExtra.readFileSync(path.join(root, 'app', 'build', 'a.js'), 'utf8');
+            assert.equal(secondA, firstA);
+            assert.ok(!fsExtra.existsSync(path.join(root, 'app', 'build', 'build')));
+        });
+    });
 });
