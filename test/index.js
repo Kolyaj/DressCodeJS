@@ -199,6 +199,35 @@ describe('Dresscode', () => {
         assert.equal(result.trim(), 'var Foo = {};\nFoo.bar = {};\nvar Bar = Foo.bar;');
     });
 
+    it('Одноимённый cname из двух разных путей в .dresscode — ошибка, а не молчаливый last-wins', async() => {
+        mock({
+            '/project/.dresscode': '../lib-a\n../lib-b',
+            '/lib-a/Quantum/index.js': 'var Quantum = {};',
+            '/lib-b/Quantum/index.js': 'var Quantum = {};',
+            '/project/index.js': 'var Q = Quantum;'
+        });
+        var error = null;
+        try {
+            await new DressCode().compile('/project/index.js');
+        } catch (err) {
+            error = err;
+        }
+        assert.ok(error, 'build should fail on a duplicated cname');
+        assert.ok(error.message.indexOf('Quantum') > -1, error.message);
+        assert.ok(error.message.indexOf('/lib-a/Quantum/index.js') > -1, error.message);
+        assert.ok(error.message.indexOf('/lib-b/Quantum/index.js') > -1, error.message);
+    });
+
+    it('Один и тот же путь дважды в .dresscode — не ошибка', async() => {
+        mock({
+            '/project/.dresscode': '../lib\n../lib',
+            '/lib/Foo/index.js': 'var Foo = {};\nFoo.bar = {};',
+            '/project/index.js': 'var Q = Foo.bar;'
+        });
+        var result = await new DressCode().compile('/project/index.js');
+        assert.ok(result.indexOf('var Foo = {};') > -1, result);
+    });
+
     describe('Корректность сборки', () => {
         fs.readdirSync(path.join(__dirname, 'tests')).forEach((fname) => {
             if (/\.js$/.test(fname)) {
